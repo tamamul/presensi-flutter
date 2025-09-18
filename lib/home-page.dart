@@ -38,7 +38,7 @@ class _HomePageState extends State<HomePage> {
       'Authorization': 'Bearer ' + await _token
     };
     var response = await myHttp.get(
-        Uri.parse('https://punyawa.com/presensi/public/api/get-presensi'),
+        Uri.parse('https://smkmaarif9kebumen.sch.id/guru/public/api/get-presensi'),
         headers: headres);
     homeResponseModel = HomeResponseModel.fromJson(json.decode(response.body));
     riwayat.clear();
