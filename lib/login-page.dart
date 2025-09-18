@@ -48,39 +48,70 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future login(email, password) async {
-    LoginResponseModel? loginResponseModel;
+  try {
     Map<String, String> body = {"email": email, "password": password};
-    var response = await myHttp.post(
-        Uri.parse('https://smkmaarif9kebumen.sch.id/guru/public/api/login'),
-        body: body);
+    final uri = Uri.parse('https://smkmaarif9kebumen.sch.id/guru/public/api/login');
+    final response = await myHttp.post(uri, body: body);
+
+    print("LOGIN STATUS: ${response.statusCode}");
+    print("LOGIN BODY: ${response.body}");
+
     if (response.statusCode == 401) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Email atau password salah")));
-    } else {
-      loginResponseModel =
-          LoginResponseModel.fromJson(json.decode(response.body));
-      print('HASIL ' + response.body);
-      saveUser(loginResponseModel.data.token, loginResponseModel.data.name);
+          .showSnackBar(const SnackBar(content: Text("Email atau password salah")));
+      return;
     }
-  }
 
-  Future saveUser(token, name) async {
-    try {
-      print("LEWAT SINI " + token + " | " + name);
-      final SharedPreferences pref = await _prefs;
-      pref.setString("name", name);
-      pref.setString("token", token);
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (context) => HomePage()))
-          .then((value) {
-        setState(() {});
-      });
-    } catch (err) {
-      print('ERROR :' + err.toString());
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(err.toString())));
+    if (response.statusCode != 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login gagal: ${response.statusCode}")));
+      return;
     }
+
+    final Map<String, dynamic> jsonMap = json.decode(response.body);
+    final data = jsonMap['data'];
+
+    if (data == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(jsonMap['message'] ?? 'Login gagal')));
+      return;
+    }
+
+    final token = data['token'] ?? data['access_token'] ?? '';
+    final name = data['name'] ?? '';
+
+    if (token == '') {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Token tidak diterima dari server")));
+      return;
+    }
+
+    await saveUser(token, name);
+  } catch (err) {
+    print('LOGIN ERROR: $err');
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text("Error koneksi: $err")));
   }
+}
+
+Future saveUser(token, name) async {
+  try {
+    final SharedPreferences pref = await _prefs;
+    // PENTING: await supaya benar-benar tersimpan sebelum navigasi
+    await pref.setString("name", name);
+    await pref.setString("token", token);
+
+    print("SAVED PREFS name=$name token=$token");
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomePage()));
+  } catch (err) {
+    print('ERROR saveUser: $err');
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(err.toString())));
+  }
+}
 
   @override
   Widget build(BuildContext context) {
