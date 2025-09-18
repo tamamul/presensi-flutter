@@ -22,153 +22,185 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _token = _prefs.then((SharedPreferences prefs) {
-      return prefs.getString("token") ?? "";
-    });
-
-    _name = _prefs.then((SharedPreferences prefs) {
-      return prefs.getString("name") ?? "";
-    });
+    _token = _prefs.then((SharedPreferences prefs) => prefs.getString("token") ?? "");
+    _name = _prefs.then((SharedPreferences prefs) => prefs.getString("name") ?? "");
   }
 
-  Future getData() async {
-    final Map<String, String> headres = {
-      'Authorization': 'Bearer ' + await _token
-    };
-    var response = await myHttp.get(
-        Uri.parse('https://smkmaarif9kebumen.sch.id/guru/public/api/get-presensi'),
-        headers: headres);
-    homeResponseModel = HomeResponseModel.fromJson(json.decode(response.body));
-    riwayat.clear();
-    homeResponseModel!.data.forEach((element) {
-      if (element.isHariIni) {
-        hariIni = element;
-      } else {
-        riwayat.add(element);
+  Future<void> getData() async {
+    try {
+      String token = await _token;
+      print("DEBUG TOKEN: '$token'");
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      };
+
+      final uri = Uri.parse(
+          'https://smkmaarif9kebumen.sch.id/guru/public/api/get-presensi');
+      final response = await myHttp.get(uri, headers: headers);
+
+      print("GET-PRESENSI STATUS: ${response.statusCode}");
+      print("GET-PRESENSI BODY: ${response.body}");
+
+      if (response.statusCode != 200) {
+        throw Exception('Server error: ${response.statusCode}');
       }
-    });
+
+      final jsonMap = json.decode(response.body);
+      homeResponseModel = HomeResponseModel.fromJson(jsonMap);
+
+      riwayat.clear();
+      hariIni = null;
+      for (var element in homeResponseModel!.data) {
+        if (element.isHariIni) {
+          hariIni = element;
+        } else {
+          riwayat.add(element);
+        }
+      }
+    } catch (e) {
+      print("ERROR GETDATA: $e");
+      hariIni = null;
+      riwayat.clear();
+      throw e;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: FutureBuilder(
-          future: getData(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            } else {
-              return SafeArea(
-                  child: Padding(
+        future: getData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Gagal memuat data:\n${snapshot.error}',
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {}); // trigger ulang future
+                    },
+                    child: const Text('Coba lagi'),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            // UI ketika data berhasil dimuat
+            return SafeArea(
+              child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FutureBuilder(
-                        future: _name,
-                        builder: (BuildContext context,
-                            AsyncSnapshot<String> snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return CircularProgressIndicator();
-                          } else {
-                            if (snapshot.hasData) {
-                              print(snapshot.data);
-                              return Text(snapshot.data!,
-                                  style: TextStyle(fontSize: 18));
-                            } else {
-                              return Text("-", style: TextStyle(fontSize: 18));
-                            }
-                          }
-                        }),
-                    SizedBox(
-                      height: 20,
+                    FutureBuilder<String>(
+                      future: _name,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const CircularProgressIndicator();
+                        } else if (snapshot.hasError) {
+                          return const Text("-", style: TextStyle(fontSize: 18));
+                        } else {
+                          return Text(snapshot.data ?? "-", style: const TextStyle(fontSize: 18));
+                        }
+                      },
                     ),
+                    const SizedBox(height: 20),
                     Container(
-                      width: 400,
+                      width: double.infinity,
                       decoration: BoxDecoration(color: Colors.blue[800]),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Column(children: [
-                          Text(hariIni?.tanggal ?? '-',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 16)),
-                          SizedBox(
-                            height: 30,
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              Column(
-                                children: [
-                                  Text(hariIni?.masuk ?? '-',
-                                      style: TextStyle(
-                                          color: Colors.white, fontSize: 24)),
-                                  Text("Masuk",
-                                      style: TextStyle(
-                                          color: Colors.white, fontSize: 16))
-                                ],
-                              ),
-                              Column(
-                                children: [
-                                  Text(hariIni?.pulang ?? '-',
-                                      style: TextStyle(
-                                          color: Colors.white, fontSize: 24)),
-                                  Text("Pulang",
-                                      style: TextStyle(
-                                          color: Colors.white, fontSize: 16))
-                                ],
-                              )
-                            ],
-                          )
-                        ]),
+                        child: Column(
+                          children: [
+                            Text(hariIni?.tanggal ?? '-',
+                                style: const TextStyle(color: Colors.white, fontSize: 16)),
+                            const SizedBox(height: 30),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                Column(
+                                  children: [
+                                    Text(hariIni?.masuk ?? '-',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 24)),
+                                    const Text("Masuk",
+                                        style: TextStyle(
+                                            color: Colors.white, fontSize: 16)),
+                                  ],
+                                ),
+                                Column(
+                                  children: [
+                                    Text(hariIni?.pulang ?? '-',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 24)),
+                                    const Text("Pulang",
+                                        style: TextStyle(
+                                            color: Colors.white, fontSize: 16)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Text("Riwayat Presensi"),
+                    const SizedBox(height: 20),
+                    const Text("Riwayat Presensi"),
                     Expanded(
                       child: ListView.builder(
                         itemCount: riwayat.length,
                         itemBuilder: (context, index) => Card(
                           child: ListTile(
                             leading: Text(riwayat[index].tanggal),
-                            title: Row(children: [
-                              Column(
-                                children: [
-                                  Text(riwayat[index].masuk,
-                                      style: TextStyle(fontSize: 18)),
-                                  Text("Masuk", style: TextStyle(fontSize: 14))
-                                ],
-                              ),
-                              SizedBox(width: 20),
-                              Column(
-                                children: [
-                                  Text(riwayat[index].pulang,
-                                      style: TextStyle(fontSize: 18)),
-                                  Text("Pulang", style: TextStyle(fontSize: 14))
-                                ],
-                              ),
-                            ]),
+                            title: Row(
+                              children: [
+                                Column(
+                                  children: [
+                                    Text(riwayat[index].masuk,
+                                        style: const TextStyle(fontSize: 18)),
+                                    const Text("Masuk",
+                                        style: TextStyle(fontSize: 14)),
+                                  ],
+                                ),
+                                const SizedBox(width: 20),
+                                Column(
+                                  children: [
+                                    Text(riwayat[index].pulang,
+                                        style: const TextStyle(fontSize: 18)),
+                                    const Text("Pulang",
+                                        style: TextStyle(fontSize: 14)),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ));
-            }
-          }),
+              ),
+            );
+          }
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context)
-              .push(MaterialPageRoute(builder: (context) => SimpanPage()))
+              .push(MaterialPageRoute(builder: (context) => const SimpanPage()))
               .then((value) {
             setState(() {});
           });
         },
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
       ),
     );
   }
