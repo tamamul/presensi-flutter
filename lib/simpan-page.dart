@@ -126,7 +126,7 @@ class _SimpanPageState extends State<SimpanPage> {
                               child: Icon(Icons.location_on, color: Colors.red),
                             );
                           },
-                          markerCount: 1,
+                          initialMarkersCount: 1,
                           markerBuilder: (context, index) {
                             return MapMarker(
                               latitude: currentLocation.latitude!,
