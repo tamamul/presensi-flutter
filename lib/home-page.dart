@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:presensi/models/home-response.dart';
 import 'package:presensi/simpan-page.dart';
@@ -23,8 +22,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _token = _prefs.then((SharedPreferences prefs) => prefs.getString("token") ?? "");
-    _name = _prefs.then((SharedPreferences prefs) => prefs.getString("name") ?? "");
+    _token = _prefs.then((prefs) => prefs.getString("token") ?? "");
+    _name = _prefs.then((prefs) => prefs.getString("name") ?? "");
   }
 
   Future<void> getData() async {
@@ -48,7 +47,7 @@ class _HomePageState extends State<HomePage> {
         throw Exception('Server error: ${response.statusCode}');
       }
 
-      final jsonMap = json.decode(response.body);
+      final Map<String, dynamic> jsonMap = json.decode(response.body);
       homeResponseModel = HomeResponseModel.fromJson(jsonMap);
 
       riwayat.clear();
@@ -71,6 +70,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Presensi"),
+      ),
       body: FutureBuilder(
         future: getData(),
         builder: (context, snapshot) {
@@ -81,8 +83,10 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Gagal memuat data:\n${snapshot.error}',
-                      textAlign: TextAlign.center),
+                  Text(
+                    'Gagal memuat data:\n${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: () {
@@ -94,35 +98,41 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           } else {
-            // UI ketika data berhasil dimuat
             return SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FutureBuilder<String>(
+                    FutureBuilder(
                       future: _name,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                      builder:
+                          (BuildContext context, AsyncSnapshot<String> snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const CircularProgressIndicator();
-                        } else if (snapshot.hasError) {
-                          return const Text("-", style: TextStyle(fontSize: 18));
                         } else {
-                          return Text(snapshot.data ?? "-", style: const TextStyle(fontSize: 18));
+                          return Text(
+                            snapshot.data ?? "-",
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          );
                         }
                       },
                     ),
                     const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
-                      decoration: BoxDecoration(color: Colors.blue[800]),
+                      decoration:
+                          BoxDecoration(color: Colors.blue[800], borderRadius: BorderRadius.circular(8)),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           children: [
                             Text(hariIni?.tanggal ?? '-',
-                                style: const TextStyle(color: Colors.white, fontSize: 16)),
-                            const SizedBox(height: 30),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 16)),
+                            const SizedBox(height: 20),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
@@ -133,7 +143,7 @@ class _HomePageState extends State<HomePage> {
                                             color: Colors.white, fontSize: 24)),
                                     const Text("Masuk",
                                         style: TextStyle(
-                                            color: Colors.white, fontSize: 16)),
+                                            color: Colors.white, fontSize: 16))
                                   ],
                                 ),
                                 Column(
@@ -143,7 +153,7 @@ class _HomePageState extends State<HomePage> {
                                             color: Colors.white, fontSize: 24)),
                                     const Text("Pulang",
                                         style: TextStyle(
-                                            color: Colors.white, fontSize: 16)),
+                                            color: Colors.white, fontSize: 16))
                                   ],
                                 ),
                               ],
@@ -153,37 +163,47 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text("Riwayat Presensi"),
+                    const Text("Riwayat Presensi",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: riwayat.length,
-                        itemBuilder: (context, index) => Card(
-                          child: ListTile(
-                            leading: Text(riwayat[index].tanggal),
-                            title: Row(
-                              children: [
-                                Column(
-                                  children: [
-                                    Text(riwayat[index].masuk,
-                                        style: const TextStyle(fontSize: 18)),
-                                    const Text("Masuk",
-                                        style: TextStyle(fontSize: 14)),
-                                  ],
+                      child: riwayat.isEmpty
+                          ? const Center(child: Text("Belum ada riwayat"))
+                          : ListView.builder(
+                              itemCount: riwayat.length,
+                              itemBuilder: (context, index) => Card(
+                                child: ListTile(
+                                  leading: Text(riwayat[index].tanggal),
+                                  title: Row(
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(riwayat[index].masuk,
+                                              style:
+                                                  const TextStyle(fontSize: 16)),
+                                          const Text("Masuk",
+                                              style: TextStyle(fontSize: 12))
+                                        ],
+                                      ),
+                                      const SizedBox(width: 20),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(riwayat[index].pulang,
+                                              style:
+                                                  const TextStyle(fontSize: 16)),
+                                          const Text("Pulang",
+                                              style: TextStyle(fontSize: 12))
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(width: 20),
-                                Column(
-                                  children: [
-                                    Text(riwayat[index].pulang,
-                                        style: const TextStyle(fontSize: 18)),
-                                    const Text("Pulang",
-                                        style: TextStyle(fontSize: 14)),
-                                  ],
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -195,7 +215,7 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context)
-              .push(MaterialPageRoute(builder: (context) => const SimpanPage()))
+              .push(MaterialPageRoute(builder: (_) => const SimpanPage()))
               .then((value) {
             setState(() {});
           });
