@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.marsa.absensi">
+    package="com.example.presensi">
 
     <!-- Tambahin izin internet di SINI -->
     <uses-permission android:name="android.permission.INTERNET"/>
