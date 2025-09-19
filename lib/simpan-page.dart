@@ -111,34 +111,32 @@ class _SimpanPageState extends State<SimpanPage> {
                     child: SfMaps(
                       layers: [
                         MapTileLayer(
-                          initialFocalLatLng: MapLatLng(
-                            currentLocation.latitude!,
-                            currentLocation.longitude!,
-                          ),
-                          initialZoomLevel: 15,
-                          initialMarkersCount: 1,
-                          urlTemplate:
-                              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                          markerBuilder: (BuildContext context, int index) {
-                            return const MapMarker(
-                              latitude: 0, // ini bakal diisi di bawah
-                              longitude: 0,
-                              child: Icon(Icons.location_on, color: Colors.red),
-                            );
-                          },
-                          initialMarkersCount: 1,
-                          markerBuilder: (context, index) {
-                            return MapMarker(
-                              latitude: currentLocation.latitude!,
-                              longitude: currentLocation.longitude!,
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+  initialFocalLatLng: MapLatLng(
+    currentLocation.latitude!,
+    currentLocation.longitude!,
+  ),
+  initialZoomLevel: 15,
+  initialMarkersCount: 2,
+  urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  markerBuilder: (BuildContext context, int index) {
+    if (index == 0) {
+      return const MapMarker(
+        latitude: 0,
+        longitude: 0,
+        child: Icon(Icons.location_on, color: Colors.red),
+      );
+    } else {
+      return MapMarker(
+        latitude: currentLocation.latitude!,
+        longitude: currentLocation.longitude!,
+        child: const Icon(
+          Icons.location_on,
+          color: Colors.red,
+        ),
+      );
+    }
+  },
+),
                     ),
                   ),
                   const SizedBox(height: 20),
