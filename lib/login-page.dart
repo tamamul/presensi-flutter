@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:presensi/home-page.dart';
 import 'package:http/http.dart' as myHttp;
@@ -21,131 +20,118 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _token = _prefs.then((SharedPreferences prefs) {
-      return prefs.getString("token") ?? "";
-    });
-
-    _name = _prefs.then((SharedPreferences prefs) {
-      return prefs.getString("name") ?? "";
-    });
-    checkToken(_token, _name);
+    _token = _prefs.then((prefs) => prefs.getString("token") ?? "");
+    _name = _prefs.then((prefs) => prefs.getString("name") ?? "");
+    checkToken();
   }
 
-  checkToken(token, name) async {
-    String tokenStr = await token;
-    String nameStr = await name;
-    if (tokenStr != "" && nameStr != "") {
-      Future.delayed(Duration(seconds: 1), () async {
+  void checkToken() async {
+    String tokenStr = await _token;
+    String nameStr = await _name;
+    if (tokenStr.isNotEmpty && nameStr.isNotEmpty) {
+      Future.delayed(const Duration(seconds: 1), () {
         Navigator.of(context)
-            .push(MaterialPageRoute(builder: (context) => HomePage()))
-            .then((value) {
-          setState(() {});
-        });
+            .pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
       });
     }
   }
 
-  Future login(email, password) async {
-  try {
-    Map<String, String> body = {"email": email, "password": password};
-    final uri = Uri.parse('https://smkmaarif9kebumen.sch.id/guru/public/api/login');
-    final response = await myHttp.post(uri, body: body);
+  Future<void> login(String email, String password) async {
+    try {
+      if (email.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Email dan password wajib diisi")),
+        );
+        return;
+      }
 
-    print("LOGIN STATUS: ${response.statusCode}");
-    print("LOGIN BODY: ${response.body}");
+      final uri = Uri.parse(
+          'https://smkmaarif9kebumen.sch.id/guru/public/api/login');
+      final response = await myHttp.post(uri, body: {
+        "email": email,
+        "password": password,
+      });
 
-    if (response.statusCode == 401) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Email atau password salah")));
-      return;
-    }
+      print("LOGIN STATUS: ${response.statusCode}");
+      print("LOGIN BODY: ${response.body}");
 
-    if (response.statusCode != 200) {
+      if (response.statusCode == 200) {
+        LoginResponseModel loginResponseModel =
+            LoginResponseModel.fromJson(json.decode(response.body));
+        await saveUser(
+            loginResponseModel.data.token, loginResponseModel.data.name);
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Email atau password salah")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login gagal: ${response.statusCode}")),
+        );
+      }
+    } catch (e) {
+      print("ERROR LOGIN: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login gagal: ${response.statusCode}")));
-      return;
+        SnackBar(content: Text("Gagal koneksi ke server: $e")),
+      );
     }
-
-    final Map<String, dynamic> jsonMap = json.decode(response.body);
-    final data = jsonMap['data'];
-
-    if (data == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(jsonMap['message'] ?? 'Login gagal')));
-      return;
-    }
-
-    final token = data['token'] ?? data['access_token'] ?? '';
-    final name = data['name'] ?? '';
-
-    if (token == '') {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Token tidak diterima dari server")));
-      return;
-    }
-
-    await saveUser(token, name);
-  } catch (err) {
-    print('LOGIN ERROR: $err');
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text("Error koneksi: $err")));
   }
-}
 
-Future saveUser(token, name) async {
-  try {
-    final SharedPreferences pref = await _prefs;
-    // PENTING: await supaya benar-benar tersimpan sebelum navigasi
-    await pref.setString("name", name);
-    await pref.setString("token", token);
-
-    print("SAVED PREFS name=$name token=$token");
-
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomePage()));
-  } catch (err) {
-    print('ERROR saveUser: $err');
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(err.toString())));
+  Future<void> saveUser(String token, String name) async {
+    try {
+      final SharedPreferences prefs = await _prefs;
+      await prefs.setString("token", token);
+      await prefs.setString("name", name);
+      Navigator.of(context)
+          .pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
+    } catch (e) {
+      print("ERROR SAVE USER: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal menyimpan data user: $e")),
+      );
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-          child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Center(child: Text("LOGIN")),
-              SizedBox(height: 20),
-              Text("Email"),
-              TextField(
-                controller: emailController,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Center(
+                      child: Text("LOGIN",
+                          style: TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold))),
+                  const SizedBox(height: 20),
+                  const Text("Email"),
+                  TextField(controller: emailController),
+                  const SizedBox(height: 20),
+                  const Text("Password"),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 30),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        login(emailController.text, passwordController.text);
+                      },
+                      child: const Text("Masuk"),
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 20),
-              Text("Password"),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                  onPressed: () {
-                    login(emailController.text, passwordController.text);
-                  },
-                  child: Text("Masuk"))
-            ],
+            ),
           ),
         ),
-      )),
+      ),
     );
   }
 }
