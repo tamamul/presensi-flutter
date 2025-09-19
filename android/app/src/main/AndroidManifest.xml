@@ -1,11 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.presensi">
+    package="com.marsa.absensi">
 
     <!-- Tambahin izin internet di SINI -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="presensi"
+        android:label="Absen MARSA"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
