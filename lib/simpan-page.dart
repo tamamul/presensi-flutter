@@ -1,5 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/src/foundation/key.dart';
+import 'package:flutter/src/widgets/framework.dart';
 import 'package:location/location.dart';
 import 'package:presensi/models/save-presensi-response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,146 +19,152 @@ class SimpanPage extends StatefulWidget {
 class _SimpanPageState extends State<SimpanPage> {
   bool _isLoading = false;
 
-  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  late Future<String> _token;
-
   bool get _isAfter14_30 {
     final now = DateTime.now();
     final jam = now.hour;
     final menit = now.minute;
     return (jam > 14 || (jam == 14 && menit >= 30));
   }
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  late Future<String> _token;
 
   @override
   void initState() {
     super.initState();
-    _token = _prefs.then((prefs) => prefs.getString("token") ?? "");
+    _token = _prefs.then((SharedPreferences prefs) {
+      return prefs.getString("token") ?? "";
+    });
   }
 
   Future<LocationData?> _currenctLocation() async {
-    final location = Location();
+    bool serviceEnable;
+    PermissionStatus permissionGranted;
 
-    bool serviceEnable = await location.serviceEnabled();
+    Location location = new Location();
+
+    serviceEnable = await location.serviceEnabled();
+
     if (!serviceEnable) {
       serviceEnable = await location.requestService();
-      if (!serviceEnable) return null;
+      if (!serviceEnable) {
+        return null;
+      }
     }
 
-    var permissionGranted = await location.hasPermission();
+    permissionGranted = await location.hasPermission();
     if (permissionGranted == PermissionStatus.denied) {
       permissionGranted = await location.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) return null;
+      if (permissionGranted != PermissionStatus.granted) {
+        return null;
+      }
     }
 
     return await location.getLocation();
   }
 
   Future savePresensi(latitude, longitude) async {
-    final token = await _token;
-
+    SavePresensiResponseModel savePresensiResponseModel;
     Map<String, String> body = {
       "latitude": latitude.toString(),
-      "longitude": longitude.toString(),
+      "longitude": longitude.toString()
     };
 
-    Map<String, String> headers = {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json'
-    };
+    Map<String, String> headers = {'Authorization': 'Bearer ' + await _token};
 
     var response = await myHttp.post(
-      Uri.parse("https://smkmaarif9kebumen.sch.id/guru/public/api/save-presensi"),
-      body: body,
-      headers: headers,
-    );
+        Uri.parse("https://smkmaarif9kebumen.sch.id/guru/public/api/save-presensi"),
+        body: body,
+        headers: headers);
 
-    final savePresensiResponseModel =
+    savePresensiResponseModel =
         SavePresensiResponseModel.fromJson(json.decode(response.body));
 
     if (savePresensiResponseModel.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Sukses simpan Presensi')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Sukses simpan Presensi')));
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Gagal: ${savePresensiResponseModel.message}')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Gagal simpan Presensi')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Presensi")),
-      body: FutureBuilder<LocationData?>(
-        future: _currenctLocation(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final currentLocation = snapshot.data!;
-            print("Lokasi: ${currentLocation.latitude} | ${currentLocation.longitude}");
-
-            return SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 300,
-                      child: SfMaps(
-                        layers: [
-                          MapTileLayer(
-                            initialFocalLatLng: MapLatLng(
-                              currentLocation.latitude!,
-                              currentLocation.longitude!,
-                            ),
-                            initialZoomLevel: 15,
-                            initialMarkersCount: 1,
-                            urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                            markerBuilder: (context, index) {
-                              return MapMarker(
-                                latitude: currentLocation.latitude!,
-                                longitude: currentLocation.longitude!,
-                                child: const Icon(Icons.location_on, color: Colors.red),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: (!_isAfter14_30 || _isLoading)
-                          ? null
-                          : () async {
-                              setState(() => _isLoading = true);
-                              await savePresensi(
-                                currentLocation.latitude,
-                                currentLocation.longitude,
-                              );
-                              setState(() => _isLoading = false);
-                            },
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(!_isAfter14_30
-                              ? "Belum waktunya absen pulang"
-                              : "Simpan Presensi"),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
+      appBar: AppBar(
+        title: Text("Presensi"),
       ),
+      body: FutureBuilder<LocationData?>(
+          future: _currenctLocation(),
+          builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+            if (snapshot.hasData) {
+              final LocationData currentLocation = snapshot.data;
+              print("KODING : " +
+                  currentLocation.latitude.toString() +
+                  " | " +
+                  currentLocation.longitude.toString());
+              return SafeArea(
+                  child: Column(
+                children: [
+                  Container(
+                    height: 300,
+                    child: SfMaps(
+                      layers: [
+                        MapTileLayer(
+                          initialFocalLatLng: MapLatLng(
+                              currentLocation.latitude!,
+                              currentLocation.longitude!),
+                          initialZoomLevel: 15,
+                          initialMarkersCount: 1,
+                          urlTemplate:
+                              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                          markerBuilder: (BuildContext context, int index) {
+                            return MapMarker(
+                              latitude: currentLocation.latitude!,
+                              longitude: currentLocation.longitude!,
+                              child: Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                              ),
+                            );
+                          },
+                        )
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  ElevatedButton(
+  onPressed: (!_isAfter14_30 || _isLoading)
+      ? null
+      : () async {
+          setState(() => _isLoading = true);
+          await savePresensi(
+            currentLocation.latitude,
+            currentLocation.longitude,
+          );
+          setState(() => _isLoading = false);
+        },
+  child: _isLoading
+      ? const SizedBox(
+          width: 20, height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2, color: Colors.white,
+          ),
+        )
+      : Text(!_isAfter14_30
+          ? "Belum waktunya absen pulang"
+          : "Simpan Presensi"),
+),
+              ));
+            } else {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+          }),
     );
   }
 }
