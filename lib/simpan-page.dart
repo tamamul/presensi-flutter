@@ -1,5 +1,8 @@
-import 'dart:convert'; // WAJIB buat json.decode
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/src/foundation/key.dart';
+import 'package:flutter/src/widgets/framework.dart';
 import 'package:location/location.dart';
 import 'package:presensi/models/save-presensi-response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,9 +32,10 @@ class _SimpanPageState extends State<SimpanPage> {
     bool serviceEnable;
     PermissionStatus permissionGranted;
 
-    Location location = Location();
+    Location location = new Location();
 
     serviceEnable = await location.serviceEnabled();
+
     if (!serviceEnable) {
       serviceEnable = await location.requestService();
       if (!serviceEnable) {
@@ -51,42 +55,29 @@ class _SimpanPageState extends State<SimpanPage> {
   }
 
   Future savePresensi(latitude, longitude) async {
-    final token = await _token; // ambil token dari shared prefs
-
+    SavePresensiResponseModel savePresensiResponseModel;
     Map<String, String> body = {
       "latitude": latitude.toString(),
-      "longitude": longitude.toString(),
+      "longitude": longitude.toString()
     };
 
-    Map<String, String> headers = {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json'
-    };
+    Map<String, String> headers = {'Authorization': 'Bearer ' + await _token};
 
     var response = await myHttp.post(
-      Uri.parse("https://smkmaarif9kebumen.sch.id/guru/public/api/save-presensi"),
-      body: body,
-      headers: headers,
-    );
+        Uri.parse("https://smkmaarif9kebumen.sch.id/guru/public/api/save-presensi"),
+        body: body,
+        headers: headers);
 
-    print("PRESENSI STATUS: ${response.statusCode}");
-    print("PRESENSI BODY: ${response.body}");
+    savePresensiResponseModel =
+        SavePresensiResponseModel.fromJson(json.decode(response.body));
 
-    if (response.statusCode == 200) {
-      SavePresensiResponseModel savePresensiResponseModel =
-          SavePresensiResponseModel.fromJson(json.decode(response.body));
-
-      if (savePresensiResponseModel.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Sukses simpan Presensi')));
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Gagal: ${savePresensiResponseModel.message}')));
-      }
+    if (savePresensiResponseModel.success) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Sukses simpan Presensi')));
+      Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: ${response.statusCode}')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Gagal simpan Presensi')));
     }
   }
 
@@ -94,71 +85,63 @@ class _SimpanPageState extends State<SimpanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Presensi"),
+        title: Text("Presensi"),
       ),
       body: FutureBuilder<LocationData?>(
-        future: _currenctLocation(),
-        builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-          if (snapshot.hasData) {
-            final LocationData currentLocation = snapshot.data;
-            print("Lokasi: ${currentLocation.latitude} | ${currentLocation.longitude}");
-
-            return SafeArea(
-              child: Column(
+          future: _currenctLocation(),
+          builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+            if (snapshot.hasData) {
+              final LocationData currentLocation = snapshot.data;
+              print("KODING : " +
+                  currentLocation.latitude.toString() +
+                  " | " +
+                  currentLocation.longitude.toString());
+              return SafeArea(
+                  child: Column(
                 children: [
-                  SizedBox(
+                  Container(
                     height: 300,
                     child: SfMaps(
                       layers: [
                         MapTileLayer(
-  initialFocalLatLng: MapLatLng(
-    currentLocation.latitude!,
-    currentLocation.longitude!,
-  ),
-  initialZoomLevel: 15,
-  initialMarkersCount: 2,
-  urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  markerBuilder: (BuildContext context, int index) {
-    if (index == 0) {
-      return const MapMarker(
-        latitude: 0,
-        longitude: 0,
-        child: Icon(Icons.location_on, color: Colors.red),
-      );
-    } else {
-      return MapMarker(
-        latitude: currentLocation.latitude!,
-        longitude: currentLocation.longitude!,
-        child: const Icon(
-          Icons.location_on,
-          color: Colors.red,
-        ),
-      );
-    }
-  },
-),
+                          initialFocalLatLng: MapLatLng(
+                              currentLocation.latitude!,
+                              currentLocation.longitude!),
+                          initialZoomLevel: 15,
+                          initialMarkersCount: 1,
+                          urlTemplate:
+                              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                          markerBuilder: (BuildContext context, int index) {
+                            return MapMarker(
+                              latitude: currentLocation.latitude!,
+                              longitude: currentLocation.longitude!,
+                              child: Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                              ),
+                            );
+                          },
+                        )
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      savePresensi(
-                        currentLocation.latitude,
-                        currentLocation.longitude,
-                      );
-                    },
-                    child: const Text("Simpan Presensi"),
+                  SizedBox(
+                    height: 20,
                   ),
+                  ElevatedButton(
+                      onPressed: () {
+                        savePresensi(currentLocation.latitude,
+                            currentLocation.longitude);
+                      },
+                      child: Text("Simpan Presensi"))
                 ],
-              ),
-            );
-          } else {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-        },
-      ),
+              ));
+            } else {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+          }),
     );
   }
 }
